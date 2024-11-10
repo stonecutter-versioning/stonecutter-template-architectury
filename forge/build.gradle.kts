@@ -13,7 +13,6 @@ val common: Project = requireNotNull(stonecutter.node.sibling("")) {
 }
 
 version = "${mod.version}+$minecraft"
-group = "${mod.group}.$loader"
 base {
     archivesName.set("${mod.id}-$loader")
 }
