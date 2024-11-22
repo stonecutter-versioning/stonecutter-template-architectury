@@ -2,6 +2,7 @@
 
 
 plugins {
+    `maven-publish`
     id("dev.architectury.loom")
     id("architectury-plugin")
     id("com.github.johnrengelman.shadow")
@@ -38,6 +39,22 @@ configurations {
     get("developmentFabric").extendsFrom(commonBundle)
 }
 
+loom {
+    decompilers {
+        get("vineflower").apply { // Adds names to lambdas - useful for mixins
+            options.put("mark-corresponding-synthetics", "1")
+        }
+    }
+
+    accessWidenerPath = common.loom.accessWidenerPath
+
+    runConfigs.all {
+        isIdeConfigGenerated = true
+        runDir = "../../../run"
+        vmArgs("-Dmixin.debug.export=true")
+    }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:$minecraft")
     mappings("net.fabricmc:yarn:$minecraft+build.${common.mod.dep("yarn_build")}:v2")
@@ -47,19 +64,6 @@ dependencies {
     shadowBundle(project(common.path, "transformProductionFabric")) { isTransitive = false }
 }
 
-loom {
-    decompilers {
-        get("vineflower").apply { // Adds names to lambdas - useful for mixins
-            options.put("mark-corresponding-synthetics", "1")
-        }
-    }
-
-    runConfigs.all {
-        isIdeConfigGenerated = true
-        runDir = "../../../run"
-        vmArgs("-Dmixin.debug.export=true")
-    }
-}
 
 java {
     withSourcesJar()
@@ -69,9 +73,19 @@ java {
     sourceCompatibility = java
 }
 
-tasks.shadowJar {
-    configurations = listOf(shadowBundle)
-    archiveClassifier = "dev-shadow"
+publishing {
+    publications {
+        create<MavenPublication>("mod") {
+            artifact(tasks.remapJar)
+            artifact(tasks.remapSourcesJar)
+            artifactId = mod.id
+            group = mod.group
+        }
+    }
+}
+
+tasks.jar {
+    archiveClassifier = "dev"
 }
 
 tasks.remapJar {
@@ -81,8 +95,9 @@ tasks.remapJar {
     dependsOn(tasks.shadowJar)
 }
 
-tasks.jar {
-    archiveClassifier = "dev"
+tasks.shadowJar {
+    configurations = listOf(shadowBundle)
+    archiveClassifier = "dev-shadow"
 }
 
 tasks.processResources {

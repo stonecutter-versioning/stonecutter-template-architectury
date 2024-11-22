@@ -1,6 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 plugins {
+    `maven-publish`
     id("dev.architectury.loom")
     id("architectury-plugin")
     id("com.github.johnrengelman.shadow")
@@ -37,6 +38,27 @@ configurations {
     get("developmentForge").extendsFrom(commonBundle)
 }
 
+loom {
+    decompilers {
+        get("vineflower").apply { // Adds names to lambdas - useful for mixins
+            options.put("mark-corresponding-synthetics", "1")
+        }
+    }
+    accessWidenerPath = common.loom.accessWidenerPath
+
+    forge.convertAccessWideners = true
+    forge.mixinConfigs(
+        "template-common.mixins.json",
+        "template-forge.mixins.json",
+    )
+
+    runConfigs.all {
+        isIdeConfigGenerated = true
+        runDir = "../../../run"
+        vmArgs("-Dmixin.debug.export=true")
+    }
+}
+
 repositories {
     maven("https://maven.minecraftforge.net")
 }
@@ -54,32 +76,23 @@ dependencies {
     shadowBundle(project(common.path, "transformProductionForge")) { isTransitive = false }
 }
 
-loom {
-    decompilers {
-        get("vineflower").apply { // Adds names to lambdas - useful for mixins
-            options.put("mark-corresponding-synthetics", "1")
-        }
-    }
-
-    forge.convertAccessWideners = true
-    forge.mixinConfigs(
-        "template-common.mixins.json",
-        "template-forge.mixins.json",
-    )
-
-    runConfigs.all {
-        isIdeConfigGenerated = true
-        runDir = "../../../run"
-        vmArgs("-Dmixin.debug.export=true")
-    }
-}
-
 java {
     withSourcesJar()
     val java = if (stonecutter.eval(minecraft, ">=1.20.5"))
         JavaVersion.VERSION_21 else JavaVersion.VERSION_17
     targetCompatibility = java
     sourceCompatibility = java
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mod") {
+            artifact(tasks.remapJar)
+            artifact(tasks.remapSourcesJar)
+            artifactId = mod.id
+            group = mod.group
+        }
+    }
 }
 
 tasks.jar {

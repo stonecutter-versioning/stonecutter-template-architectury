@@ -1,4 +1,5 @@
 plugins {
+    `maven-publish`
     id("dev.kikugie.stonecutter")
     id("dev.architectury.loom") version "1.7-SNAPSHOT" apply false
     id("architectury-plugin") version "3.4-SNAPSHOT" apply false
@@ -13,14 +14,27 @@ stonecutter registerChiseled tasks.register("chiseledBuild", stonecutter.chisele
     ofTask("buildAndCollect")
 }
 
-// Builds loader-specific versions into `build/libs/{mod.version}/{loader}`
+stonecutter registerChiseled tasks.register("chiseledPublish", stonecutter.chiseled) {
+    group = "project"
+    ofTask("publish")
+}
+
 for (it in stonecutter.tree.branches) {
     if (it.id.isEmpty()) continue
     val loader = it.id.upperCaseFirst()
+
+    // Builds loader-specific versions into `build/libs/{mod.version}/{loader}`
     stonecutter registerChiseled tasks.register("chiseledBuild$loader", stonecutter.chiseled) {
         group = "project"
         versions { branch, _ -> branch == it.id }
         ofTask("buildAndCollect")
+    }
+
+    // Publishes loader-specific versions
+    stonecutter registerChiseled tasks.register("chiseledPublish$loader", stonecutter.chiseled) {
+        group = "project"
+        versions { branch, _ -> branch == it.id }
+        ofTask("publish")
     }
 }
 
@@ -32,5 +46,24 @@ for (it in stonecutter.tree.nodes) {
     for (type in types) it.tasks.register("runActive$type$loader") {
         group = "project"
         dependsOn("run$type")
+    }
+}
+
+subprojects {
+    apply {
+        plugin("maven-publish")
+        plugin("java")
+    }
+
+    repositories {
+        mavenCentral()
+        // define repositories used by all projects here
+    }
+
+    publishing {
+        repositories {
+            // define your publishing repositories here
+            mavenLocal()
+        }
     }
 }

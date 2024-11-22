@@ -1,6 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 plugins {
+    `maven-publish`
     id("dev.architectury.loom")
     id("architectury-plugin")
     id("com.github.johnrengelman.shadow")
@@ -37,6 +38,22 @@ configurations {
     get("developmentNeoForge").extendsFrom(commonBundle)
 }
 
+loom {
+    decompilers {
+        get("vineflower").apply { // Adds names to lambdas - useful for mixins
+            options.put("mark-corresponding-synthetics", "1")
+        }
+    }
+
+    accessWidenerPath = common.loom.accessWidenerPath
+
+    runConfigs.all {
+        isIdeConfigGenerated = true
+        runDir = "../../../run"
+        vmArgs("-Dmixin.debug.export=true")
+    }
+}
+
 repositories {
     maven("https://maven.neoforged.net/releases/")
 }
@@ -59,26 +76,23 @@ dependencies {
     shadowBundle(project(common.path, "transformProductionNeoForge")) { isTransitive = false }
 }
 
-loom {
-    decompilers {
-        get("vineflower").apply { // Adds names to lambdas - useful for mixins
-            options.put("mark-corresponding-synthetics", "1")
-        }
-    }
-
-    runConfigs.all {
-        isIdeConfigGenerated = true
-        runDir = "../../../run"
-        vmArgs("-Dmixin.debug.export=true")
-    }
-}
-
 java {
     withSourcesJar()
     val java = if (stonecutter.eval(minecraft, ">=1.20.5"))
         JavaVersion.VERSION_21 else JavaVersion.VERSION_17
     targetCompatibility = java
     sourceCompatibility = java
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mod") {
+            artifact(tasks.remapJar)
+            artifact(tasks.remapSourcesJar)
+            artifactId = mod.id
+            group = mod.group
+        }
+    }
 }
 
 tasks.jar {
